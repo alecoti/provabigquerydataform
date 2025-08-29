@@ -1,0 +1,35 @@
+/*
+  GOLD | EVALUATION: forecast_evaluation
+  -------------------------------------
+  PURPOSE: Evaluates the performance of the scalable forecasting model (`demand_forecast_model`)
+           for every single SKU-region combination. This provides the error KPIs needed to
+           monitor model accuracy and build a "self-correction" feedback loop.
+  SOURCE MODEL: `ml.demand_forecast_model`
+  SOURCE DATA: `silver.facts.demand_features_daily`
+  GRAIN: One row per sku_id, region.
+  LOGIC:
+    - This model uses `ML.EVALUATE` to compare the model's predictions against a set of
+      holdout data (the last 30 days of actuals).
+    - Because the model was trained with `time_series_id_col`, `ML.EVALUATE` will return
+      a full set of evaluation metrics (MAPE, MAE, RMSE, etc.) for each individual time series.
+*/
+
+config {
+  type: "table",
+  schema: "gold",
+  tags: ["gold", "forecast", "eval", "demand-planning"],
+  dependencies: ["train_demand_forecast_model"]
+}
+
+SELECT
+  *
+FROM ML.EVALUATE(
+  MODEL `${dataform.projectConfig.defaultProject}.ml.demand_forecast_model`,
+  (
+    -- We need to provide a holdout set of data for evaluation.
+    -- Let's use the most recent 30 days of data from our features table.
+    SELECT *
+    FROM ${ref("demand_features_daily")}
+    WHERE date >= DATE_SUB((SELECT MAX(date) FROM ${ref("demand_features_daily")}), INTERVAL 30 DAY)
+  )
+)

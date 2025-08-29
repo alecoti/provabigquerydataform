@@ -1,0 +1,45 @@
+/*
+  ML | OPERATIONS: train_demand_forecast_model
+  -------------------------------------
+  PURPOSE: Trains a new, scalable sales forecasting model for ALL SKUs and regions.
+  INPUT: `silver.facts.demand_features_daily`
+  OUTPUT: A BigQuery ML model named `demand_forecast_model` in the `ml` schema.
+
+  METHODOLOGY:
+    - This script uses CREATE OR REPLACE MODEL to stay up-to-date with the latest data.
+    - It trains an ARIMA_PLUS model, which can automatically detect trends and seasonality.
+    - Crucially, it uses `time_series_id_col` on both `sku_id` and `region`, which instructs
+      BigQuery ML to train thousands of separate time series models in parallel, one for each
+      unique combination. This is how the solution scales.
+    - It incorporates the rich features from the input table to improve accuracy beyond
+      a simple time series analysis.
+*/
+
+config {
+  type: "operations",
+  tags: ["ml", "training", "demand-planning"]
+}
+
+CREATE OR REPLACE MODEL `${dataform.projectConfig.defaultProject}.ml.demand_forecast_model`
+OPTIONS(
+  model_type = 'ARIMA_PLUS',
+  time_series_timestamp_col = 'date',
+  time_series_data_col = 'qty_sold',
+  time_series_id_col = ['sku_id', 'region'],
+  auto_arima = TRUE,
+  data_frequency = 'DAILY',
+  -- Including all our engineered features for the model to use
+  feature_cols = [
+    'year',
+    'month',
+    'day',
+    'week',
+    'sales_lag_7d',
+    'sales_mvg_avg_7d',
+    'sales_mvg_avg_30d'
+  ]
+) AS
+SELECT *
+FROM ${ref("demand_features_daily")}
+-- It's good practice to filter out any rows where the target variable is null
+WHERE qty_sold IS NOT NULL;
