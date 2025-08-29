@@ -1,10 +1,25 @@
+/*
+  GOLD | SERIES: sku1_stock_full_series
+  -------------------------------------
+  PURPOSE: Creates a unified time series for SKU001 that combines historical actual sales
+           with future forecasted sales. This is extremely useful for visualizations and
+           "what-if" analysis, providing a single view of past and future.
+  SOURCE: `silver.sales_sku1_daily`, `ml.sales_sku1_forecast_model`
+  GRAIN: One row per date for SKU001.
+  LOGIC:
+    - The `actuals` CTE retrieves the historical sales data from the Silver layer.
+    - The `forecast` CTE generates a new 30-day forecast using the ML model.
+    - `UNION ALL` combines these two datasets into a single table.
+    - A `source` column is added to easily distinguish between actual and forecasted data points.
+*/
+
 config {
   type: "table",
   schema: "gold",
-  tags: ["gold", "forecast"]
+  tags: ["gold", "forecast", "series"]
 }
 
-/* Storico: actuals da silver */
+/* Step 1: Retrieve the historical sales data for SKU001 */
 WITH actuals AS (
   SELECT
     date,
@@ -14,10 +29,10 @@ WITH actuals AS (
   FROM ${ref("sales_sku1_daily")}
 ),
 
-/* Futuro: forecast dal modello ML */
+/* Step 2: Generate a new forecast for the next 30 days */
 forecast AS (
   SELECT
-    CAST(forecast_timestamp AS DATE) AS date,  -- << fix qui
+    CAST(forecast_timestamp AS DATE) AS date,
     NULL AS actual_qty,
     forecast_value AS forecast_qty,
     "forecast" AS source
@@ -27,6 +42,7 @@ forecast AS (
   )
 )
 
+/* Step 3: Combine historical and future data */
 SELECT * FROM actuals
 UNION ALL
 SELECT * FROM forecast

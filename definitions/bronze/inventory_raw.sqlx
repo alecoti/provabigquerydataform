@@ -1,3 +1,14 @@
+/*
+  BRONZE: inventory_raw
+  -------------------------------------
+  PURPOSE: Ingests the raw daily inventory data from the source system. This table serves as the
+           foundational layer for all downstream inventory-related models.
+  SOURCE: `careful-pilot-453607-k8.lab.inventory_lab`
+  GRAIN: date, sku_id, region
+  TRANSFORMATIONS:
+    - No transformations are applied. This is a direct ingestion of the source data.
+*/
+
 config {
   type: "table",
   schema: "bronze",

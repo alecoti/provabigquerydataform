@@ -1,8 +1,21 @@
+/*
+  SILVER | DIMENSION: dim_sku
+  -------------------------------------
+  PURPOSE: Creates a dimension table for Stock Keeping Units (SKUs). It provides a unique list
+           of all products and establishes the primary relationship between an SKU and its supplier.
+  SOURCE: `silver.facts.purchase_orders_clean`
+  GRAIN: One row per sku_id.
+  LOGIC:
+    - Assumes a one-to-one or many-to-one relationship where each SKU is primarily sourced
+      from a single supplier. If an SKU can be sourced from multiple suppliers, this model
+      may create duplicates or pick one relationship based on the source data's state.
+    - Extracts the distinct pairs of sku_id and supplier_id.
+*/
+
 config { type: "table", schema: "silver", tags: ["silver","dimension"] }
 
-/* DIM: SKU
-   Anagrafica degli SKU con fornitore di riferimento */
 select distinct
   sku_id,
-  supplier_id  -- legame SKU → fornitore
+  supplier_id
 from ${ref("purchase_orders_clean")}
+where sku_id is not null

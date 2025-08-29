@@ -1,15 +1,21 @@
+/*
+  SILVER | FACT: purchase_order_lead_time
+  -------------------------------------
+  PURPOSE: Creates a fact table containing the actual lead time in days for each purchase
+           order line that has been successfully received.
+  SOURCE: `silver.facts.purchase_orders_clean`
+  GRAIN: One row per received purchase order line (po_id, sku_id).
+  LOGIC:
+    - Filters only for purchase orders that have a status of 'RECEIVED' (where is_received = true).
+    - This clean, filtered table is the ideal input for calculating lead time variability in
+      downstream models (e.g., safety stock calculation).
+*/
+
 config {
   type: "table",
   schema: "silver",
   tags: ["silver", "fact", "demand-planning"]
 }
-
-/*
-  FACT: purchase_order_lead_time
-  Grain: (po_id, sku_id)
-  Description: Fornisce il lead time effettivo in giorni per ogni linea di ordine di acquisto che è stata ricevuta.
-               Questo modello serve come base pulita per calcoli aggregati nel layer Gold.
-*/
 
 SELECT
   po_id,

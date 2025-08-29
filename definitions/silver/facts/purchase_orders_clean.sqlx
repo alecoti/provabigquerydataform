@@ -1,17 +1,25 @@
+/*
+  SILVER | FACT: purchase_orders_clean
+  -------------------------------------
+  PURPOSE: Creates a cleaned version of the purchase orders data. This involves basic
+           type casting and adding flags for easier filtering.
+  SOURCE: `bronze.purchase_orders_raw`
+  GRAIN: One row per purchase order line (po_id, sku_id). The grain can change depending on the PO status.
+*/
+
 config { type: "table", schema: "silver", tags: ["silver","fact"] }
 
-/* FACT: PURCHASE_ORDERS_CLEAN
-   Grain = (po_id, status)
-   Eventi sugli ordini di acquisto */
 select
   po_id,
   sku_id,
   region,
   supplier_id,
+  -- Ensure date columns are of DATE type
   cast(creation_date as date) as creation_date,
   cast(eta_date as date) as eta_date,
   lead_time_days,
   qty_ordered,
   status,
+  -- Add a boolean flag for received orders to simplify downstream filtering
   case when status = 'RECEIVED' then true else false end as is_received
 from ${ref("purchase_orders_raw")}

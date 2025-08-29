@@ -1,7 +1,16 @@
+/*
+  SILVER | DIMENSION: dim_supplier
+  -------------------------------------
+  PURPOSE: Creates a dimension table containing a unique list of all suppliers.
+  SOURCE: `silver.facts.purchase_orders_clean`
+  GRAIN: One row per supplier_id.
+  TRANSFORMATIONS:
+    - Selects the distinct values from the `supplier_id` column.
+*/
+
 config { type: "table", schema: "silver", tags: ["silver","dimension"] }
 
-/* DIM: SUPPLIER
-   Elenco fornitori */
 select distinct
   supplier_id
 from ${ref("purchase_orders_clean")}
+where supplier_id is not null

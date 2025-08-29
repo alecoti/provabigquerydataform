@@ -1,7 +1,23 @@
+/*
+  GOLD | KPI: kpi_service_level
+  -------------------------------------
+  PURPOSE: Calculates key service level KPIs for each product and region on a daily basis.
+           This table is used for performance monitoring and identifying stock issues.
+  SOURCE: `silver.facts.sales_enriched`
+  DEPENDENCIES: This model uses custom javascript functions defined in `includes/kpi.js`.
+  GRAIN: One row per date, sku_id, region.
+
+  KPIs:
+    - fill_rate: (aka "On-Shelf Availability") Calculated as `qty_sold / (qty_sold + lost_sales)`.
+                 It measures the percentage of customer demand that was met.
+    - stockout_flag: A boolean flag that is true if the product was out of stock at the
+                     end of the day (stock_end = 0).
+*/
+
 config {
   type: "table",
   schema: "gold",
-  tags: ["gold"]
+  tags: ["gold", "kpi"]
 }
 
 select
@@ -10,6 +26,8 @@ select
   f.region,
   f.qty_sold,
   f.lost_sales,
+  -- Calculate fill rate using the javascript function from includes/kpi.js
   ${kpi.calc_fill_rate("f.qty_sold", "f.lost_sales")} as fill_rate,
+  -- Flag stockouts using the javascript function from includes/kpi.js
   ${kpi.is_stockout("f.stock_end")} as stockout_flag
 from ${ref("sales_enriched")} f

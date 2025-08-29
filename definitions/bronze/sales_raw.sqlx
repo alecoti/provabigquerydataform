@@ -1,3 +1,14 @@
+/*
+  BRONZE: sales_raw
+  -------------------------------------
+  PURPOSE: Ingests the raw sales data from the source system. This table forms the basis
+           for all sales analysis and demand forecasting.
+  SOURCE: `careful-pilot-453607-k8.lab.sales`
+  GRAIN: Appears to be one row per date, sku_id, region, representing total daily sales.
+  TRANSFORMATIONS:
+    - No transformations are applied. This is a direct ingestion of the source data.
+*/
+
 config {
   type: "table",
   schema: "bronze",

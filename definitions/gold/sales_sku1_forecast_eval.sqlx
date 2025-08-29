@@ -1,3 +1,18 @@
+/*
+  GOLD | EVALUATION: sales_sku1_forecast_eval
+  -------------------------------------
+  PURPOSE: Evaluates the performance of the SKU001 sales forecasting model against a holdout
+           dataset. This model isolates the Mean Absolute Percentage Error (MAPE) metric.
+  SOURCE DATA: `silver.sales_sku1_daily`
+  SOURCE MODEL: `ml.sales_sku1_forecast_model`
+  GRAIN: One row per evaluation run.
+  LOGIC:
+    - Uses the `ML.EVALUATE` function to compare the model's forecasts against actual sales data.
+    - The evaluation is performed on a specific date range ('2025-06-01' to '2025-07-31')
+      which serves as the holdout/test set.
+    - It specifically selects the `mean_absolute_percentage_error` from the evaluation results.
+*/
+
 config {
   type: "table",
   schema: "gold",
@@ -10,6 +25,7 @@ SELECT
 FROM ML.EVALUATE(
   MODEL `careful-pilot-453607-k8.ml.sales_sku1_forecast_model`,
   (
+    -- The subquery provides the ground truth data for the evaluation period.
     SELECT
       date,
       qty_sold
