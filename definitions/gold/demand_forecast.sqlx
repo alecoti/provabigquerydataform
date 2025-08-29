@@ -29,7 +29,7 @@ WITH future_features AS (
     d.week,
     -- The schema of this table MUST match the feature schema of the training data.
     -- For features whose future values are unknown, we provide NULLs of the correct data type.
-    CAST(NULL AS FLOAT64) AS sales_lag_7d,
+    CAST(NULL AS INT64) AS sales_lag_7d,
     CAST(NULL AS FLOAT64) AS sales_mvg_avg_7d,
     CAST(NULL AS FLOAT64) AS sales_mvg_avg_30d
   FROM UNNEST(GENERATE_DATE_ARRAY(
