@@ -1,0 +1,17 @@
+config {
+  type: "table",
+  schema: "bronze",
+  tags: ["bronze"]
+}
+
+select
+  po_id,
+  sku_id,
+  region,
+  supplier_id,
+  creation_date,
+  eta_date,
+  lead_time_days,
+  qty_ordered,
+  status
+from `careful-pilot-453607-k8.lab.purchase_orders`

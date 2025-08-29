@@ -1,0 +1,15 @@
+config {
+  type: "table",
+  schema: "gold",
+  tags: ["gold"]
+}
+
+select
+  f.date,
+  f.sku_id,
+  f.region,
+  f.qty_sold,
+  f.lost_sales,
+  ${kpi.calc_fill_rate("f.qty_sold", "f.lost_sales")} as fill_rate,
+  ${kpi.is_stockout("f.stock_end")} as stockout_flag
+from ${ref("sales_enriched")} f

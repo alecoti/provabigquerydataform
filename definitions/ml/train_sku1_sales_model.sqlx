@@ -1,0 +1,24 @@
+config {
+  type: "operations",
+  tags: ["ml", "training"]
+}
+
+/* Opzionale: assicurati che il dataset esista nella location giusta */
+CREATE SCHEMA IF NOT EXISTS `careful-pilot-453607-k8.ml`
+OPTIONS(location="us-central1");
+
+/* Training / retraining del modello ML */
+CREATE OR REPLACE MODEL `careful-pilot-453607-k8.ml.sales_sku1_forecast_model`
+OPTIONS(
+  model_type = 'ARIMA_PLUS',
+  time_series_timestamp_col = 'date',
+  time_series_data_col = 'qty_sold',
+  horizon = 30,
+  auto_arima = TRUE,
+  data_frequency = 'DAILY'
+)
+AS
+SELECT
+  date,
+  qty_sold
+FROM `careful-pilot-453607-k8.silver.sales_sku1_daily`;

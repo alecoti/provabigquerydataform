@@ -1,0 +1,17 @@
+config { type: "table", schema: "silver", tags: ["silver","fact"] }
+
+/* FACT: PURCHASE_ORDERS_CLEAN
+   Grain = (po_id, status)
+   Eventi sugli ordini di acquisto */
+select
+  po_id,
+  sku_id,
+  region,
+  supplier_id,
+  cast(creation_date as date) as creation_date,
+  cast(eta_date as date) as eta_date,
+  lead_time_days,
+  qty_ordered,
+  status,
+  case when status = 'RECEIVED' then true else false end as is_received
+from ${ref("purchase_orders_raw")}

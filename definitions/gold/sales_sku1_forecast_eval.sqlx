@@ -1,0 +1,19 @@
+config {
+  type: "table",
+  schema: "gold",
+  tags: ["gold", "forecast", "eval"]
+}
+
+SELECT
+  CURRENT_TIMESTAMP() AS evaluated_at,
+  *
+FROM ML.EVALUATE(
+  MODEL `careful-pilot-453607-k8.ml.sales_sku1_forecast_model`,
+  (
+    SELECT
+      date,
+      qty_sold
+    FROM `careful-pilot-453607-k8.silver.sales_sku1_daily`
+    WHERE date BETWEEN '2025-06-01' AND '2025-07-31' -- periodo che scegli
+  )
+)

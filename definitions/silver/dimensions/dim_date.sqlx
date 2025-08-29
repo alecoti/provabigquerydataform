@@ -1,0 +1,12 @@
+config { type: "table", schema: "silver", tags: ["silver","dimension"] }
+
+/* DIM: DATE
+   Calendario per join su date */
+select
+  d as calendar_date,
+  extract(year from d) as year,
+  extract(month from d) as month,
+  extract(day from d) as day,
+  format_date('%Y-%m', d) as year_month,
+  extract(week from d) as week
+from unnest(generate_date_array('2025-01-01','2025-12-31', interval 1 day)) as d

@@ -1,0 +1,17 @@
+config { type: "table", schema: "silver", tags: ["silver","fact"] }
+
+/* FACT: SALES_ENRICHED
+   Grain = (date, sku_id, region, transazione)
+   Vendite arricchite con info di stock */
+select
+  s.date,
+  s.sku_id,
+  s.region,
+  s.qty_sold,
+  s.price,
+  s.revenue,
+  i.stock_start,
+  i.stock_end,
+  i.lost_sales
+from ${ref("sales_raw")} s
+left join ${ref("inventory_daily")} i using (date, sku_id, region)

@@ -1,0 +1,13 @@
+config { type: "table", schema: "gold", tags: ["gold"] }
+
+/* GOLD KPI: Supplier Performance
+   Grain = (month, supplier_id)
+   Misura puntualità e lead time medio */
+select
+  format_date('%Y-%m', creation_date) as month,
+  supplier_id,
+  avg(lead_time_days) as avg_lead_time,
+  approx_quantiles(lead_time_days, 20)[offset(19)] as p95_lead_time,
+  avg(case when eta_date >= creation_date and is_received then 1 else 0 end) as on_time_rate
+from ${ref("purchase_orders_clean")}
+group by month, supplier_id

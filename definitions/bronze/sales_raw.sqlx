@@ -1,0 +1,14 @@
+config {
+  type: "table",
+  schema: "bronze",
+  tags: ["bronze"]
+}
+
+select
+  date,
+  sku_id,
+  region,
+  qty_sold,
+  price,
+  revenue
+from `careful-pilot-453607-k8.lab.sales`

@@ -1,0 +1,16 @@
+config {
+  type: "table",
+  schema: "gold",
+  tags: ["gold", "forecast"],
+  dependencies: ["train_sku1_sales_model"]
+}
+
+select
+  forecast_timestamp as date,
+  forecast_value as forecast_qty,
+  prediction_interval_lower_bound as forecast_low,
+  prediction_interval_upper_bound as forecast_high
+from ml.forecast(
+  model `careful-pilot-453607-k8.ml.sales_sku1_forecast_model`,
+  struct(30 as horizon, 0.9 as confidence_level)
+)

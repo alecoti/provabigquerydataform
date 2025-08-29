@@ -1,0 +1,33 @@
+config {
+  type: "table",
+  schema: "gold",
+  tags: ["gold", "forecast"]
+}
+
+/* Storico: actuals da silver */
+WITH actuals AS (
+  SELECT
+    date,
+    qty_sold AS actual_qty,
+    NULL AS forecast_qty,
+    "actual" AS source
+  FROM ${ref("sales_sku1_daily")}
+),
+
+/* Futuro: forecast dal modello ML */
+forecast AS (
+  SELECT
+    CAST(forecast_timestamp AS DATE) AS date,  -- << fix qui
+    NULL AS actual_qty,
+    forecast_value AS forecast_qty,
+    "forecast" AS source
+  FROM ML.FORECAST(
+    MODEL `careful-pilot-453607-k8.ml.sales_sku1_forecast_model`,
+    STRUCT(30 AS horizon, 0.9 AS confidence_level)
+  )
+)
+
+SELECT * FROM actuals
+UNION ALL
+SELECT * FROM forecast
+ORDER BY date

@@ -1,0 +1,17 @@
+config {
+  type: "table",
+  schema: "bronze",
+  tags: ["bronze"]
+}
+
+select
+  date,
+  sku_id,
+  region,
+  stock_start,
+  demand,
+  qty_sold,
+  arrivals,
+  stock_end,
+  lost_sales
+from `careful-pilot-453607-k8.lab.inventory_lab`

@@ -1,0 +1,7 @@
+config { type: "table", schema: "silver", tags: ["silver","dimension"] }
+
+/* DIM: REGION
+   Elenco regioni univoche */
+select distinct
+  region
+from ${ref("inventory_daily")}

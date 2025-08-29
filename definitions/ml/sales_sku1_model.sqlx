@@ -1,0 +1,5 @@
+config {
+  type: "declaration",
+  schema: "ml",
+  name: "sales_sku1_forecast_model"
+}

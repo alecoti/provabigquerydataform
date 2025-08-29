@@ -1,0 +1,7 @@
+config { type: "table", schema: "silver", tags: ["silver","dimension"] }
+
+/* DIM: SUPPLIER
+   Elenco fornitori */
+select distinct
+  supplier_id
+from ${ref("purchase_orders_clean")}

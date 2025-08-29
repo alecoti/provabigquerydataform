@@ -1,0 +1,25 @@
+config {
+  type: "table",
+  schema: "gold",
+  tags: ["gold"]
+}
+
+/* GOLD: Stock Position
+   - Base: inventory_daily (ha arrivals, stock_start/stock_end)
+   - Join: sales_enriched per avere qty_sold e price
+   - stock_value = stock_end × prezzo medio SKU
+   - year_month dal helper JS
+*/
+select
+  i.date,
+  i.sku_id,
+  i.region,
+  i.stock_start,
+  i.stock_end,
+  i.arrivals,                                   -- <-- ora arriva da inventory_daily
+  coalesce(f.qty_sold, 0) as qty_sold,
+  (i.stock_end * coalesce(avg(f.price) over (partition by i.sku_id), 0)) as stock_value,
+  ${date.year_month("i.date")} as year_month
+from ${ref("inventory_daily")} i
+left join ${ref("sales_enriched")} f
+  using (date, sku_id, region)

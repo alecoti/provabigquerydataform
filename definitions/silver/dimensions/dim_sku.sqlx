@@ -1,0 +1,8 @@
+config { type: "table", schema: "silver", tags: ["silver","dimension"] }
+
+/* DIM: SKU
+   Anagrafica degli SKU con fornitore di riferimento */
+select distinct
+  sku_id,
+  supplier_id  -- legame SKU → fornitore
+from ${ref("purchase_orders_clean")}

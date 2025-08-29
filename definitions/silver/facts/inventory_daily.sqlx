@@ -1,0 +1,16 @@
+config { type: "table", schema: "silver", tags: ["silver","fact"] }
+
+/* FACT: INVENTORY_DAILY
+   Grain = (date, sku_id, region)
+   Contiene stock giornaliero per SKU×Regione */
+select
+  cast(date as date) as date,
+  sku_id,
+  region,
+  stock_start,
+  demand,
+  qty_sold,
+  arrivals,
+  stock_end,
+  lost_sales
+from ${ref("inventory_raw")}
