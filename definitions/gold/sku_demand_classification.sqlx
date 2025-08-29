@@ -1,0 +1,68 @@
+config {
+  type: "table",
+  schema: "gold",
+  tags: ["gold", "demand-planning", "analytics"]
+}
+
+/*
+  GOLD: sku_demand_classification
+  Grain: (sku_id)
+  Description: Classifica ogni SKU usando la metodologia ABC/XYZ.
+               - ABC classifica gli SKU in base al volume di vendita.
+               - XYZ classifica gli SKU in base alla volatilità della domanda.
+               Questa classificazione è uno strumento strategico per la gestione dello stock.
+*/
+
+WITH sales_metrics AS (
+  -- Calcola le metriche di base (volume, media, dev. standard) per ogni SKU negli ultimi 90 giorni
+  SELECT
+    sku_id,
+    SUM(daily_qty_sold) AS total_quantity_sold,
+    AVG(daily_qty_sold) AS avg_daily_sales,
+    STDDEV(daily_qty_sold) AS stddev_daily_sales
+  FROM ${ref("sales_velocity_daily")}
+  WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL 90 DAY)
+  GROUP BY 1
+),
+
+abc_classification AS (
+  -- Classifica ABC basata sulla percentuale di contribuzione al volume totale
+  SELECT
+    sku_id,
+    total_quantity_sold,
+    avg_daily_sales,
+    stddev_daily_sales,
+    PERCENT_RANK() OVER (ORDER BY total_quantity_sold DESC) as sales_percent_rank
+  FROM sales_metrics
+),
+
+xyz_classification AS (
+  -- Classifica XYZ basata sul coefficiente di variazione (CV)
+  SELECT
+    sku_id,
+    total_quantity_sold,
+    avg_daily_sales,
+    stddev_daily_sales,
+    sales_percent_rank,
+    -- Calcola il CV, gestendo la divisione per zero
+    SAFE_DIVIDE(stddev_daily_sales, avg_daily_sales) AS coefficient_of_variation
+  FROM abc_classification
+)
+
+SELECT
+  sku_id,
+  CASE
+    WHEN sales_percent_rank <= 0.2 THEN 'A'
+    WHEN sales_percent_rank > 0.2 AND sales_percent_rank <= 0.5 THEN 'B'
+    ELSE 'C'
+  END AS abc_classification,
+  CASE
+    WHEN coefficient_of_variation < 0.5 THEN 'X'
+    WHEN coefficient_of_variation >= 0.5 AND coefficient_of_variation < 1.0 THEN 'Y'
+    WHEN coefficient_of_variation >= 1.0 THEN 'Z'
+    ELSE 'X' -- Default per SKU con vendite stabili/zero varianza
+  END AS xyz_classification,
+  total_quantity_sold,
+  coefficient_of_variation
+FROM xyz_classification
+ORDER BY total_quantity_sold DESC
