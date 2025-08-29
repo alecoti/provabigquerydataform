@@ -1,0 +1,59 @@
+config {
+  type: "table",
+  schema: "gold",
+  tags: ["gold", "demand-planning", "analytics"]
+}
+
+/*
+  GOLD: dynamic_safety_stock
+  Grain: (sku_id)
+  Description: Calcola lo stock di sicurezza dinamico per ogni SKU.
+               La formula utilizzata tiene conto della variabilità sia della domanda (vendite)
+               sia del tempo di approvvigionamento (lead time), mirando a un livello di servizio del 95%.
+*/
+
+WITH service_level AS (
+  -- Definiamo il Z-score per il livello di servizio desiderato (es. 95% -> 1.645)
+  SELECT 1.645 AS z_score
+),
+
+lead_time_metrics AS (
+  -- Calcola la media e la deviazione standard del lead time per ogni SKU
+  SELECT
+    sku_id,
+    AVG(lead_time_days) AS avg_lead_time,
+    STDDEV(lead_time_days) AS stddev_lead_time
+  FROM ${ref("purchase_order_lead_time")}
+  GROUP BY 1
+),
+
+sales_metrics AS (
+  -- Calcola la media e la deviazione standard delle vendite giornaliere per ogni SKU (ultimi 90 giorni)
+  SELECT
+    sku_id,
+    AVG(daily_qty_sold) AS avg_daily_sales,
+    STDDEV(daily_qty_sold) AS stddev_daily_sales
+  FROM ${ref("sales_velocity_daily")}
+  WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL 90 DAY)
+  GROUP BY 1
+)
+
+SELECT
+  lt.sku_id,
+  -- Calcolo dello stock di sicurezza usando la formula completa
+  CEIL(
+    (SELECT z_score FROM service_level) * SQRT(
+      (lt.avg_lead_time * POW(s.stddev_daily_sales, 2)) +
+      (POW(s.avg_daily_sales, 2) * POW(lt.stddev_lead_time, 2))
+    )
+  ) AS recommended_safety_stock,
+  -- Metriche intermedie per trasparenza e debugging
+  lt.avg_lead_time,
+  lt.stddev_lead_time,
+  s.avg_daily_sales,
+  s.stddev_daily_sales
+FROM lead_time_metrics AS lt
+JOIN sales_metrics AS s ON lt.sku_id = s.sku_id
+-- Assicuriamoci che i calcoli siano possibili (escludiamo casi con stddev nulla che potrebbero essere problematici)
+WHERE lt.stddev_lead_time IS NOT NULL AND s.stddev_daily_sales IS NOT NULL AND lt.avg_lead_time > 0
+ORDER BY recommended_safety_stock DESC

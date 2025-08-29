@@ -1,0 +1,20 @@
+config {
+  type: "table",
+  schema: "silver",
+  tags: ["silver", "fact", "demand-planning"]
+}
+
+/*
+  FACT: purchase_order_lead_time
+  Grain: (po_id, sku_id)
+  Description: Fornisce il lead time effettivo in giorni per ogni linea di ordine di acquisto che è stata ricevuta.
+               Questo modello serve come base pulita per calcoli aggregati nel layer Gold.
+*/
+
+SELECT
+  po_id,
+  sku_id,
+  supplier_id,
+  lead_time_days
+FROM ${ref("purchase_orders_clean")}
+WHERE is_received = true

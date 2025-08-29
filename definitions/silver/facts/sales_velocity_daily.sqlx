@@ -1,0 +1,34 @@
+config {
+  type: "table",
+  schema: "silver",
+  tags: ["silver", "fact", "demand-planning"]
+}
+
+/*
+  FACT: sales_velocity_daily
+  Grain: (date, sku_id, region)
+  Description: Calcola la velocità di vendita (media mobile a 7 giorni) per ogni SKU e regione.
+*/
+
+WITH sales_aggregated_daily AS (
+  -- Aggrego le vendite per giorno, sku e regione, dato che il grain di sales_enriched potrebbe essere più fine
+  SELECT
+    date,
+    sku_id,
+    region,
+    SUM(qty_sold) as daily_qty_sold
+  FROM ${ref("sales_enriched")}
+  GROUP BY 1, 2, 3
+)
+
+SELECT
+  date,
+  sku_id,
+  region,
+  daily_qty_sold,
+  AVG(daily_qty_sold) OVER (
+    PARTITION BY sku_id, region
+    ORDER BY date
+    ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
+  ) AS sales_velocity_7d
+FROM sales_aggregated_daily
