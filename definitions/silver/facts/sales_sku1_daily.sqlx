@@ -1,0 +1,13 @@
+config {
+  type: "table",
+  schema: "silver",
+  tags: ["silver"]
+}
+
+select
+  date,
+  sum(qty_sold) as qty_sold
+from ${ref("sales_enriched")}
+where sku_id = 'SKU001'
+group by date
+order by date
