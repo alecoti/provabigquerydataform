@@ -2,14 +2,13 @@
   GOLD | FORECAST: demand_forecast
   -------------------------------------
   PURPOSE: Generates future sales forecasts for all SKUs across multiple time horizons.
-           This provides short-term, medium-term, and long-term views for planning.
   SOURCE MODEL: `ml.demand_forecast_model`
   GRAIN: One row per sku_id, region, forecast_date, forecast_horizon.
   LOGIC:
-    - This model calls `ML.FORECAST` three times on the scalable ML model.
-    - Each call uses a different horizon (30, 90, and 180 days).
+    - Creates a `future_features` CTE to generate the calendar features for the next 180 days.
+      This is a required input for an ARIMA_PLUS_XREG model.
+    - Calls `ML.FORECAST` three times, each time passing the future features as the third parameter.
     - The results are then combined using UNION ALL into a single, unified table.
-    - A `forecast_horizon` column makes it easy to filter for a specific forecast window.
 */
 
 config {
@@ -19,11 +18,33 @@ config {
   dependencies: ["train_demand_forecast_model"]
 }
 
-WITH forecast_30_days AS (
+-- Step 1: Generate a table of the features for all future dates we need to forecast.
+-- The ARIMA_PLUS_XREG model requires the future values of the features to make a prediction.
+WITH future_features AS (
+  SELECT
+    future_date AS date,
+    d.year,
+    d.month,
+    d.day,
+    d.week
+  FROM UNNEST(GENERATE_DATE_ARRAY(
+    -- Start forecasting from tomorrow
+    DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY),
+    -- Forecast for the maximum horizon
+    DATE_ADD(CURRENT_DATE(), INTERVAL 180 DAY),
+    INTERVAL 1 DAY
+  )) as future_date
+  -- Join to the date dimension to easily get calendar features
+  LEFT JOIN ${ref("dim_date")} AS d ON future_date = d.calendar_date
+),
+
+-- Step 2: Run the forecast for each horizon, passing the future features each time.
+forecast_30_days AS (
   SELECT 30 AS forecast_horizon_days, *
   FROM ML.FORECAST(
     MODEL `careful-pilot-453607-k8.ml.demand_forecast_model`,
-    STRUCT(30 AS horizon, 0.8 AS confidence_level)
+    STRUCT(30 AS horizon, 0.8 AS confidence_level),
+    (SELECT * FROM future_features WHERE date <= DATE_ADD(CURRENT_DATE(), INTERVAL 30 DAY))
   )
 ),
 
@@ -31,7 +52,8 @@ forecast_90_days AS (
   SELECT 90 AS forecast_horizon_days, *
   FROM ML.FORECAST(
     MODEL `careful-pilot-453607-k8.ml.demand_forecast_model`,
-    STRUCT(90 AS horizon, 0.8 AS confidence_level)
+    STRUCT(90 AS horizon, 0.8 AS confidence_level),
+    (SELECT * FROM future_features WHERE date <= DATE_ADD(CURRENT_DATE(), INTERVAL 90 DAY))
   )
 ),
 
@@ -39,10 +61,12 @@ forecast_180_days AS (
   SELECT 180 AS forecast_horizon_days, *
   FROM ML.FORECAST(
     MODEL `careful-pilot-453607-k8.ml.demand_forecast_model`,
-    STRUCT(180 AS horizon, 0.8 AS confidence_level)
+    STRUCT(180 AS horizon, 0.8 AS confidence_level),
+    (SELECT * FROM future_features) -- Use all 180 days of features
   )
 ),
 
+-- Step 3: Combine all forecasts into a single table
 all_forecasts AS (
   SELECT * FROM forecast_30_days
   UNION ALL
@@ -51,6 +75,7 @@ all_forecasts AS (
   SELECT * FROM forecast_180_days
 )
 
+-- Step 4: Final selection and renaming of columns
 SELECT
   forecast_horizon_days,
   sku_id,

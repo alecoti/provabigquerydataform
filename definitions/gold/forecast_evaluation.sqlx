@@ -24,7 +24,7 @@ config {
 SELECT
   *
 FROM ML.EVALUATE(
-  MODEL `${dataform.projectConfig.defaultProject}.ml.demand_forecast_model`,
+  MODEL `careful-pilot-453607-k8.ml.demand_forecast_model`,
   (
     -- We need to provide a holdout set of data for evaluation.
     -- Let's use the most recent 30 days of data from our features table.

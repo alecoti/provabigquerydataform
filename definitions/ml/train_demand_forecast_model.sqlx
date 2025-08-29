@@ -7,7 +7,8 @@
 
   METHODOLOGY:
     - This script uses CREATE OR REPLACE MODEL to stay up-to-date with the latest data.
-    - It trains an ARIMA_PLUS model, which can automatically detect trends and seasonality.
+    - It trains an ARIMA_PLUS_XREG model, which uses external features (exogenous regressors)
+      in addition to time series analysis to improve forecast accuracy.
     - Crucially, it uses `time_series_id_col` on both `sku_id` and `region`, which instructs
       BigQuery ML to train thousands of separate time series models in parallel, one for each
       unique combination. This is how the solution scales.
@@ -22,7 +23,7 @@ config {
 
 CREATE OR REPLACE MODEL `careful-pilot-453607-k8.ml.demand_forecast_model`
 OPTIONS(
-  model_type = 'ARIMA_PLUS',
+  model_type = 'ARIMA_PLUS_XREG',
   time_series_timestamp_col = 'date',
   time_series_data_col = 'qty_sold',
   time_series_id_col = ['sku_id', 'region'],
