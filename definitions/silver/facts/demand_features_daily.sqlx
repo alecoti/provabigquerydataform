@@ -1,0 +1,48 @@
+/*
+  SILVER | FACT: demand_features_daily
+  -------------------------------------
+  PURPOSE: Creates a rich feature set for demand forecasting models. This table combines
+           raw sales data with calendar information, lag features, and rolling averages
+           to provide a comprehensive input for ML training.
+  SOURCE: `silver.facts.sales_enriched`, `silver.dimensions.dim_date`
+  GRAIN: One row per date, sku_id, region.
+*/
+
+config {
+  type: "table",
+  schema: "silver",
+  tags: ["silver", "fact", "ml-input", "demand-planning"]
+}
+
+WITH sales_daily AS (
+  -- Aggregate sales to a consistent daily grain before creating features.
+  SELECT
+    date,
+    sku_id,
+    region,
+    SUM(qty_sold) as qty_sold
+  FROM ${ref("sales_enriched")}
+  GROUP BY 1, 2, 3
+)
+
+SELECT
+  s.date,
+  s.sku_id,
+  s.region,
+  s.qty_sold,
+
+  -- Calendar Features
+  d.year,
+  d.month,
+  d.day,
+  d.week,
+
+  -- Lag Features (captures weekly seasonality)
+  LAG(s.qty_sold, 7) OVER (PARTITION BY s.sku_id, s.region ORDER BY s.date) AS sales_lag_7d,
+
+  -- Rolling Average Features (smooths out noise and shows trends)
+  AVG(s.qty_sold) OVER (PARTITION BY s.sku_id, s.region ORDER BY s.date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) AS sales_mvg_avg_7d,
+  AVG(s.qty_sold) OVER (PARTITION BY s.sku_id, s.region ORDER BY s.date ROWS BETWEEN 29 PRECEDING AND CURRENT ROW) AS sales_mvg_avg_30d
+
+FROM sales_daily AS s
+LEFT JOIN ${ref("dim_date")} AS d ON s.date = d.calendar_date

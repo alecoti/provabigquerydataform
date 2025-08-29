@@ -1,0 +1,62 @@
+/*
+  GOLD | FORECAST: demand_forecast
+  -------------------------------------
+  PURPOSE: Generates future sales forecasts for all SKUs across multiple time horizons.
+           This provides short-term, medium-term, and long-term views for planning.
+  SOURCE MODEL: `ml.demand_forecast_model`
+  GRAIN: One row per sku_id, region, forecast_date, forecast_horizon.
+  LOGIC:
+    - This model calls `ML.FORECAST` three times on the scalable ML model.
+    - Each call uses a different horizon (30, 90, and 180 days).
+    - The results are then combined using UNION ALL into a single, unified table.
+    - A `forecast_horizon` column makes it easy to filter for a specific forecast window.
+*/
+
+config {
+  type: "table",
+  schema: "gold",
+  tags: ["gold", "forecast", "demand-planning"],
+  dependencies: ["train_demand_forecast_model"]
+}
+
+WITH forecast_30_days AS (
+  SELECT 30 AS forecast_horizon_days, *
+  FROM ML.FORECAST(
+    MODEL `${dataform.projectConfig.defaultProject}.ml.demand_forecast_model`,
+    STRUCT(30 AS horizon, 0.8 AS confidence_level)
+  )
+),
+
+forecast_90_days AS (
+  SELECT 90 AS forecast_horizon_days, *
+  FROM ML.FORECAST(
+    MODEL `${dataform.projectConfig.defaultProject}.ml.demand_forecast_model`,
+    STRUCT(90 AS horizon, 0.8 AS confidence_level)
+  )
+),
+
+forecast_180_days AS (
+  SELECT 180 AS forecast_horizon_days, *
+  FROM ML.FORECAST(
+    MODEL `${dataform.projectConfig.defaultProject}.ml.demand_forecast_model`,
+    STRUCT(180 AS horizon, 0.8 AS confidence_level)
+  )
+),
+
+all_forecasts AS (
+  SELECT * FROM forecast_30_days
+  UNION ALL
+  SELECT * FROM forecast_90_days
+  UNION ALL
+  SELECT * FROM forecast_180_days
+)
+
+SELECT
+  forecast_horizon_days,
+  sku_id,
+  region,
+  CAST(forecast_timestamp AS DATE) AS forecast_date,
+  forecast_value AS forecast_quantity,
+  prediction_interval_lower_bound AS forecast_lower_bound,
+  prediction_interval_upper_bound AS forecast_upper_bound
+FROM all_forecasts
