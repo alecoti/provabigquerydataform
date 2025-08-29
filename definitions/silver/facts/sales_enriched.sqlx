@@ -1,8 +1,19 @@
+/*
+  SILVER | FACT: sales_enriched
+  -------------------------------------
+  PURPOSE: Enriches the raw sales data by joining it with daily inventory information.
+           This provides context to sales figures, such as the stock level at the time of sale
+           and any potential lost sales due to stockouts.
+  SOURCE: `bronze.sales_raw`, `silver.facts.inventory_daily`
+  GRAIN: The grain of the source sales data, assumed to be date, sku_id, region.
+  LOGIC:
+    - Performs a LEFT JOIN from sales to inventory on date, sku, and region.
+    - A LEFT JOIN is used to ensure that all sales records are kept, even if there is no
+      corresponding inventory data (though this would indicate a data quality issue).
+*/
+
 config { type: "table", schema: "silver", tags: ["silver","fact"] }
 
-/* FACT: SALES_ENRICHED
-   Grain = (date, sku_id, region, transazione)
-   Vendite arricchite con info di stock */
 select
   s.date,
   s.sku_id,
@@ -10,6 +21,7 @@ select
   s.qty_sold,
   s.price,
   s.revenue,
+  -- Columns from inventory table
   i.stock_start,
   i.stock_end,
   i.lost_sales

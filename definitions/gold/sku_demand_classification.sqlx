@@ -1,20 +1,33 @@
+/*
+  GOLD | ANALYTICS: sku_demand_classification
+  -------------------------------------
+  PURPOSE: Classifies each SKU using the ABC-XYZ analysis framework. This is a strategic
+           tool for inventory management, allowing for differentiated strategies based on
+           a product's importance (volume) and demand predictability (volatility).
+  SOURCE: `silver.facts.sales_velocity_daily`
+  GRAIN: One row per sku_id.
+
+  METHODOLOGY:
+    - ABC Analysis (Volume): Classifies SKUs based on their contribution to total sales volume
+      over the last 90 days. It uses `PERCENT_RANK` to segment them.
+        - A: Top 20% of SKUs by sales volume.
+        - B: Next 30% of SKUs.
+        - C: Bottom 50% of SKUs.
+    - XYZ Analysis (Volatility): Classifies SKUs based on the coefficient of variation (CV)
+      of their daily sales.
+        - X: CV < 0.5 (Stable demand)
+        - Y: 0.5 <= CV < 1.0 (Variable demand)
+        - Z: CV >= 1.0 (Erratic demand)
+*/
+
 config {
   type: "table",
   schema: "gold",
   tags: ["gold", "demand-planning", "analytics"]
 }
 
-/*
-  GOLD: sku_demand_classification
-  Grain: (sku_id)
-  Description: Classifica ogni SKU usando la metodologia ABC/XYZ.
-               - ABC classifica gli SKU in base al volume di vendita.
-               - XYZ classifica gli SKU in base alla volatilità della domanda.
-               Questa classificazione è uno strumento strategico per la gestione dello stock.
-*/
-
 WITH sales_metrics AS (
-  -- Calcola le metriche di base (volume, media, dev. standard) per ogni SKU negli ultimi 90 giorni
+  -- Calculate base metrics (volume, avg, stddev) for each SKU over the last 90 days
   SELECT
     sku_id,
     SUM(daily_qty_sold) AS total_quantity_sold,
@@ -26,7 +39,7 @@ WITH sales_metrics AS (
 ),
 
 abc_classification AS (
-  -- Classifica ABC basata sulla percentuale di contribuzione al volume totale
+  -- Calculate the sales rank for ABC analysis
   SELECT
     sku_id,
     total_quantity_sold,
@@ -37,30 +50,31 @@ abc_classification AS (
 ),
 
 xyz_classification AS (
-  -- Classifica XYZ basata sul coefficiente di variazione (CV)
+  -- Calculate the Coefficient of Variation for XYZ analysis
   SELECT
     sku_id,
     total_quantity_sold,
     avg_daily_sales,
     stddev_daily_sales,
     sales_percent_rank,
-    -- Calcola il CV, gestendo la divisione per zero
     SAFE_DIVIDE(stddev_daily_sales, avg_daily_sales) AS coefficient_of_variation
   FROM abc_classification
 )
 
 SELECT
   sku_id,
+  -- Assign ABC class based on sales rank
   CASE
     WHEN sales_percent_rank <= 0.2 THEN 'A'
     WHEN sales_percent_rank > 0.2 AND sales_percent_rank <= 0.5 THEN 'B'
     ELSE 'C'
   END AS abc_classification,
+  -- Assign XYZ class based on volatility
   CASE
     WHEN coefficient_of_variation < 0.5 THEN 'X'
     WHEN coefficient_of_variation >= 0.5 AND coefficient_of_variation < 1.0 THEN 'Y'
     WHEN coefficient_of_variation >= 1.0 THEN 'Z'
-    ELSE 'X' -- Default per SKU con vendite stabili/zero varianza
+    ELSE 'X' -- Default for SKUs with no sales or zero variance
   END AS xyz_classification,
   total_quantity_sold,
   coefficient_of_variation

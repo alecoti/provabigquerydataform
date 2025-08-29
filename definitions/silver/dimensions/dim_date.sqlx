@@ -1,7 +1,19 @@
+/*
+  SILVER | DIMENSION: dim_date
+  -------------------------------------
+  PURPOSE: Creates a comprehensive date dimension table. This table is a standard component
+           of a dimensional model, allowing for flexible time-based analysis and filtering.
+  SOURCE: This table is generated programmatically using BigQuery's `GENERATE_DATE_ARRAY` function.
+          It does not depend on a source table.
+  GRAIN: One row per calendar day.
+  TRANSFORMATIONS:
+    - Generates a continuous range of dates for the year 2025.
+    - Extracts various date parts (year, month, day, year-month, week) into separate columns
+      for easy filtering and aggregation.
+*/
+
 config { type: "table", schema: "silver", tags: ["silver","dimension"] }
 
-/* DIM: DATE
-   Calendario per join su date */
 select
   d as calendar_date,
   extract(year from d) as year,

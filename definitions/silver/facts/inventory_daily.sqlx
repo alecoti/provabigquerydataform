@@ -1,8 +1,16 @@
+/*
+  SILVER | FACT: inventory_daily
+  -------------------------------------
+  PURPOSE: Creates a cleaned-up fact table for daily inventory levels. This serves as a reliable
+           source for inventory analysis and for enriching other models like sales.
+  SOURCE: `bronze.inventory_raw`
+  GRAIN: One row per date, sku_id, region.
+  TRANSFORMATIONS:
+    - Casts the `date` column to a DATE type to ensure type consistency.
+*/
+
 config { type: "table", schema: "silver", tags: ["silver","fact"] }
 
-/* FACT: INVENTORY_DAILY
-   Grain = (date, sku_id, region)
-   Contiene stock giornaliero per SKU×Regione */
 select
   cast(date as date) as date,
   sku_id,

@@ -1,23 +1,41 @@
+/*
+  ML | OPERATIONS: train_sku1_sales_model
+  -------------------------------------
+  PURPOSE: This script trains (or retrains) the sales forecasting model for SKU001.
+           It is configured as an 'operations' type, meaning it executes DDL/DML statements
+           directly in BigQuery.
+  SOURCE: `silver.sales_sku1_daily`
+  OUTPUT: A BigQuery ML model named `sales_sku1_forecast_model` in the `ml` schema.
+*/
+
 config {
   type: "operations",
   tags: ["ml", "training"]
 }
 
-/* Opzionale: assicurati che il dataset esista nella location giusta */
+-- Step 1: Ensure the destination schema for the model exists.
+-- This is optional but good practice to avoid errors on the first run.
 CREATE SCHEMA IF NOT EXISTS `careful-pilot-453607-k8.ml`
 OPTIONS(location="us-central1");
 
-/* Training / retraining del modello ML */
+-- Step 2: Train the machine learning model.
+-- CREATE OR REPLACE ensures that the model is updated with the latest data on each run.
 CREATE OR REPLACE MODEL `careful-pilot-453607-k8.ml.sales_sku1_forecast_model`
 OPTIONS(
+  -- ARIMA_PLUS is a powerful time series forecasting model in BigQuery ML.
   model_type = 'ARIMA_PLUS',
+  -- Specify the columns for the timestamp and the value to be forecasted.
   time_series_timestamp_col = 'date',
   time_series_data_col = 'qty_sold',
+  -- The default forecast horizon when calling ML.FORECAST.
   horizon = 30,
+  -- Automatically finds the best ARIMA model parameters.
   auto_arima = TRUE,
+  -- Specifies the frequency of the time series data.
   data_frequency = 'DAILY'
 )
 AS
+-- The training data for the model.
 SELECT
   date,
   qty_sold

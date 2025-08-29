@@ -1,3 +1,14 @@
+/*
+  BRONZE: purchase_orders_raw
+  -------------------------------------
+  PURPOSE: Ingests the raw purchase order (PO) data from the source system. This table contains
+           all POs and their statuses.
+  SOURCE: `careful-pilot-453607-k8.lab.purchase_orders`
+  GRAIN: po_id, sku_id
+  TRANSFORMATIONS:
+    - No transformations are applied. This is a direct ingestion of the source data.
+*/
+
 config {
   type: "table",
   schema: "bronze",

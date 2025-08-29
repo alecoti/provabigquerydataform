@@ -1,13 +1,29 @@
-config { type: "table", schema: "gold", tags: ["gold"] }
+/*
+  GOLD | KPI: supplier_performance
+  -------------------------------------
+  PURPOSE: Calculates monthly performance KPIs for each supplier. This is used to monitor
+           supplier reliability and identifying potential risks in the supply chain.
+  SOURCE: `silver.facts.purchase_orders_clean`
+  GRAIN: One row per month, supplier_id.
 
-/* GOLD KPI: Supplier Performance
-   Grain = (month, supplier_id)
-   Misura puntualità e lead time medio */
+  KPIs:
+    - avg_lead_time: The average number of days between order creation and reception.
+    - p95_lead_time: The 95th percentile lead time. This helps understand the worst-case
+                     scenario for lead times, ignoring extreme outliers.
+    - on_time_rate: The percentage of order lines that were received. The current logic
+                    (`eta_date >= creation_date`) is a proxy for on-time delivery but could be
+                    improved by comparing the actual delivery date with the estimated (ETA) date.
+*/
+
+config { type: "table", schema: "gold", tags: ["gold", "kpi"] }
+
 select
   format_date('%Y-%m', creation_date) as month,
   supplier_id,
   avg(lead_time_days) as avg_lead_time,
+  -- Use approx_quantiles for efficient percentile calculation in BigQuery
   approx_quantiles(lead_time_days, 20)[offset(19)] as p95_lead_time,
+  -- This calculates the reception rate. A true "on-time" rate would compare delivery_date to eta_date.
   avg(case when eta_date >= creation_date and is_received then 1 else 0 end) as on_time_rate
 from ${ref("purchase_orders_clean")}
 group by month, supplier_id

@@ -1,7 +1,17 @@
+/*
+  SILVER | DIMENSION: dim_region
+  -------------------------------------
+  PURPOSE: Creates a dimension table containing a unique list of all sales regions.
+           This allows for consistent filtering and aggregation by region.
+  SOURCE: `silver.facts.inventory_daily`
+  GRAIN: One row per region.
+  TRANSFORMATIONS:
+    - Selects the distinct values from the `region` column.
+*/
+
 config { type: "table", schema: "silver", tags: ["silver","dimension"] }
 
-/* DIM: REGION
-   Elenco regioni univoche */
 select distinct
   region
 from ${ref("inventory_daily")}
+where region is not null

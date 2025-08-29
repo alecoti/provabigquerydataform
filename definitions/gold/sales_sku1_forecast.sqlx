@@ -1,3 +1,17 @@
+/*
+  GOLD | FORECAST: sales_sku1_forecast
+  -------------------------------------
+  PURPOSE: Generates a future sales forecast for SKU001 using a pre-trained ML model.
+  SOURCE MODEL: `ml.sales_sku1_forecast_model`
+  GRAIN: One row per forecasted day.
+  LOGIC:
+    - Calls the BigQuery ML `ML.FORECAST` function on the trained ARIMA_PLUS model.
+    - `horizon`: Predicts 30 days into the future.
+    - `confidence_level`: The prediction interval will have a 90% confidence level.
+      This means the model is 90% confident that the true sales value will fall
+      between `forecast_low` and `forecast_high`.
+*/
+
 config {
   type: "table",
   schema: "gold",

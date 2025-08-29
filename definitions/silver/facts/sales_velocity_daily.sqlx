@@ -1,17 +1,22 @@
+/*
+  SILVER | FACT: sales_velocity_daily
+  -------------------------------------
+  PURPOSE: Calculates the daily sales velocity for each product, defined as the 7-day
+           moving average of units sold. This helps in smoothing out daily sales noise
+           to better understand recent demand trends.
+  SOURCE: `silver.facts.sales_enriched`
+  GRAIN: One row per date, sku_id, region.
+*/
+
 config {
   type: "table",
   schema: "silver",
   tags: ["silver", "fact", "demand-planning"]
 }
 
-/*
-  FACT: sales_velocity_daily
-  Grain: (date, sku_id, region)
-  Description: Calcola la velocità di vendita (media mobile a 7 giorni) per ogni SKU e regione.
-*/
-
 WITH sales_aggregated_daily AS (
-  -- Aggrego le vendite per giorno, sku e regione, dato che il grain di sales_enriched potrebbe essere più fine
+  -- First, aggregate sales to a daily level, as the source grain might be finer (e.g., transactional).
+  -- This ensures the window function for the moving average operates correctly.
   SELECT
     date,
     sku_id,
@@ -26,6 +31,7 @@ SELECT
   sku_id,
   region,
   daily_qty_sold,
+  -- Calculate the 7-day moving average of sales.
   AVG(daily_qty_sold) OVER (
     PARTITION BY sku_id, region
     ORDER BY date
