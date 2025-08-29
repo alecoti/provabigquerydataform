@@ -20,7 +20,7 @@ config {
   tags: ["ml", "training", "demand-planning"]
 }
 
-CREATE OR REPLACE MODEL `${dataform.projectConfig.defaultProject}.ml.demand_forecast_model`
+CREATE OR REPLACE MODEL `careful-pilot-453607-k8.ml.demand_forecast_model`
 OPTIONS(
   model_type = 'ARIMA_PLUS',
   time_series_timestamp_col = 'date',
