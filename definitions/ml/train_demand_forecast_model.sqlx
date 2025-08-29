@@ -27,17 +27,7 @@ OPTIONS(
   time_series_data_col = 'qty_sold',
   time_series_id_col = ['sku_id', 'region'],
   auto_arima = TRUE,
-  data_frequency = 'DAILY',
-  -- Including all our engineered features for the model to use
-  feature_cols = [
-    'year',
-    'month',
-    'day',
-    'week',
-    'sales_lag_7d',
-    'sales_mvg_avg_7d',
-    'sales_mvg_avg_30d'
-  ]
+  data_frequency = 'DAILY'
 ) AS
 SELECT *
 FROM ${ref("demand_features_daily")}
