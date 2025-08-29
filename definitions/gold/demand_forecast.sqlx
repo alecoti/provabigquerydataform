@@ -22,7 +22,7 @@ config {
 WITH forecast_30_days AS (
   SELECT 30 AS forecast_horizon_days, *
   FROM ML.FORECAST(
-    MODEL `${dataform.projectConfig.defaultProject}.ml.demand_forecast_model`,
+    MODEL `careful-pilot-453607-k8.ml.demand_forecast_model`,
     STRUCT(30 AS horizon, 0.8 AS confidence_level)
   )
 ),
@@ -30,7 +30,7 @@ WITH forecast_30_days AS (
 forecast_90_days AS (
   SELECT 90 AS forecast_horizon_days, *
   FROM ML.FORECAST(
-    MODEL `${dataform.projectConfig.defaultProject}.ml.demand_forecast_model`,
+    MODEL `careful-pilot-453607-k8.ml.demand_forecast_model`,
     STRUCT(90 AS horizon, 0.8 AS confidence_level)
   )
 ),
@@ -38,7 +38,7 @@ forecast_90_days AS (
 forecast_180_days AS (
   SELECT 180 AS forecast_horizon_days, *
   FROM ML.FORECAST(
-    MODEL `${dataform.projectConfig.defaultProject}.ml.demand_forecast_model`,
+    MODEL `careful-pilot-453607-k8.ml.demand_forecast_model`,
     STRUCT(180 AS horizon, 0.8 AS confidence_level)
   )
 ),
