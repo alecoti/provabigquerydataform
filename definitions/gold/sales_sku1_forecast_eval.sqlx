@@ -6,7 +6,7 @@ config {
 
 SELECT
   CURRENT_TIMESTAMP() AS evaluated_at,
-  *
+  eval_metrics.mean_absolute_percentage_error AS mape
 FROM ML.EVALUATE(
   MODEL `careful-pilot-453607-k8.ml.sales_sku1_forecast_model`,
   (
@@ -16,4 +16,4 @@ FROM ML.EVALUATE(
     FROM `careful-pilot-453607-k8.silver.sales_sku1_daily`
     WHERE date BETWEEN '2025-06-01' AND '2025-07-31' -- periodo che scegli
   )
-)
+) AS eval_metrics
