@@ -1,0 +1,102 @@
+/*
+  GOLD | PRESCRIPTIVE: internal_transfers
+  -------------------------------------
+  PURPOSE: This prescriptive analytics model suggests optimal internal stock transfers
+           to rebalance inventory across the warehouse network. It aims to move stock
+           from overstocked locations to understocked locations to prevent stockouts.
+  SOURCES: `gold.stock_position`, `gold.dynamic_safety_stock`, `silver.dim_region`
+  GRAIN: One row per suggested transfer (sku_id, from_region, to_region).
+
+  LOGIC:
+    1.  Calculates the stock delta (current stock vs. recommended safety stock) for each SKU/region.
+    2.  Identifies "needy" warehouses (stock < safety stock) and "surplus" warehouses (stock > safety stock).
+    3.  Calculates the geographic distance between every possible pair of needy and surplus warehouses.
+    4.  For each needy warehouse, it ranks the surplus warehouses by distance (closest first).
+    5.  It selects the #1 closest surplus warehouse that has enough stock to fulfill the need.
+    6.  The final output is a concrete list of recommended transfers.
+*/
+
+config {
+  type: "table",
+  schema: "gold",
+  tags: ["gold", "prescriptive", "logistics"]
+}
+
+-- Step 1: Consolidate stock levels with safety stock recommendations
+WITH stock_levels AS (
+  SELECT
+    pos.date,
+    pos.sku_id,
+    pos.region,
+    pos.stock_end,
+    ss.recommended_safety_stock,
+    (pos.stock_end - ss.recommended_safety_stock) AS stock_delta
+  FROM ${ref("stock_position")} AS pos
+  JOIN ${ref("dynamic_safety_stock")} AS ss ON pos.sku_id = ss.sku_id
+  -- We only want to calculate transfers based on the most recent day's stock position
+  WHERE pos.date = (SELECT MAX(date) FROM ${ref("stock_position")})
+),
+
+-- Step 2: Identify warehouses that need stock
+needy_warehouses AS (
+  SELECT
+    sku_id,
+    region,
+    -stock_delta AS quantity_needed -- Make the needed amount positive
+  FROM stock_levels
+  WHERE stock_delta < 0
+),
+
+-- Step 3: Identify warehouses that have surplus stock to share
+surplus_warehouses AS (
+  SELECT
+    sku_id,
+    region,
+    stock_delta AS quantity_surplus
+  FROM stock_levels
+  -- Only consider a warehouse as a source if it has a meaningful surplus (e.g., > 10% above safety stock)
+  WHERE stock_delta > (recommended_safety_stock * 0.1) AND stock_delta > 1
+),
+
+-- Step 4: Calculate the distance between every possible needy/surplus pair for each SKU
+distance_matrix AS (
+  SELECT
+    n.sku_id,
+    n.region AS needy_region,
+    s.region AS surplus_region,
+    n.quantity_needed,
+    s.quantity_surplus,
+    -- Calculate distance in kilometers using the coordinates from the region dimension
+    ST_DISTANCE(
+      ST_GEOGPOINT(needy_coords.longitude, needy_coords.latitude),
+      ST_GEOGPOINT(surplus_coords.longitude, surplus_coords.latitude)
+    ) / 1000 AS distance_km
+  FROM needy_warehouses n
+  JOIN surplus_warehouses s ON n.sku_id = s.sku_id
+  -- Join to get coordinates for the needy warehouse
+  JOIN ${ref("dim_region")} AS needy_coords ON n.region = needy_coords.region
+  -- Join to get coordinates for the surplus warehouse
+  JOIN ${ref("dim_region")} AS surplus_coords ON s.region = surplus_coords.region
+  WHERE n.region != s.region -- Can't transfer from a warehouse to itself
+),
+
+-- Step 5: For each need, rank the potential source warehouses by distance
+ranked_transfers AS (
+  SELECT
+    *,
+    ROW_NUMBER() OVER(PARTITION BY sku_id, needy_region ORDER BY distance_km ASC) as rank_by_distance
+  FROM distance_matrix
+  -- Only consider transfers where the source has enough stock to cover the need
+  WHERE quantity_surplus >= quantity_needed
+)
+
+-- Step 6: Select the best (closest) transfer for each need
+SELECT
+  sku_id,
+  quantity_needed AS transfer_quantity,
+  surplus_region AS from_region,
+  needy_region AS to_region,
+  distance_km
+FROM ranked_transfers
+WHERE rank_by_distance = 1
+ORDER BY from_region, to_region, sku_id

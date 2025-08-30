@@ -1,17 +1,38 @@
 /*
   SILVER | DIMENSION: dim_region
   -------------------------------------
-  PURPOSE: Creates a dimension table containing a unique list of all sales regions.
-           This allows for consistent filtering and aggregation by region.
+  PURPOSE: Creates a dimension table for sales regions, enriched with geographic coordinates
+           for geospatial analysis (e.g., calculating distances between warehouses).
   SOURCE: `silver.facts.inventory_daily`
   GRAIN: One row per region.
-  TRANSFORMATIONS:
-    - Selects the distinct values from the `region` column.
 */
 
 config { type: "table", schema: "silver", tags: ["silver","dimension"] }
 
-select distinct
-  region
-from ${ref("inventory_daily")}
-where region is not null
+WITH region_coords AS (
+  -- Manual mapping of region names to the coordinates of their capital cities.
+  SELECT 'Lombardia' AS region, 45.4642 AS latitude, 9.1900 AS longitude
+  UNION ALL
+  SELECT 'Lazio' AS region, 41.9028 AS latitude, 12.4964 AS longitude
+  UNION ALL
+  SELECT 'Campania' AS region, 40.8518 AS latitude, 14.2681 AS longitude
+  UNION ALL
+  SELECT 'Piemonte' AS region, 45.0703 AS latitude, 7.6869 AS longitude
+  UNION ALL
+  SELECT 'Sicilia' AS region, 38.1157 AS latitude, 13.3615 AS longitude
+  UNION ALL
+  SELECT 'Emilia-Romagna' AS region, 44.4949 AS latitude, 11.3426 AS longitude
+),
+
+distinct_regions AS (
+  SELECT DISTINCT region
+  FROM ${ref("inventory_daily")}
+  WHERE region IS NOT NULL
+)
+
+SELECT
+  dr.region,
+  rc.latitude,
+  rc.longitude
+FROM distinct_regions dr
+LEFT JOIN region_coords rc ON dr.region = rc.region

@@ -1,80 +1,80 @@
-# Project Overview: Demand Planning & Forecasting Pipeline
+# Riepilogo del Progetto: Pipeline di Demand Planning & Forecasting
 
-## 1. Introduction
+## 1. Introduzione
 
-This document provides a comprehensive overview of the Dataform project for demand planning and sales forecasting. The primary goal of this pipeline is to transform raw operational data into actionable insights, including KPIs, analytics, and a powerful, scalable sales forecasting system.
+Questo documento fornisce una panoramica completa del progetto Dataform per la pianificazione della domanda e la previsione delle vendite. L'obiettivo primario di questa pipeline è trasformare i dati operativi grezzi in insight azionabili, inclusi KPI, analisi e un sistema di previsione delle vendite potente e scalabile.
 
-The project follows a standard medallion architecture (Bronze -> Silver -> Gold) to ensure data quality, scalability, and maintainability.
+Il progetto segue un'architettura a medaglione standard (Bronze -> Silver -> Gold) per garantire la qualità dei dati, la scalabilità e la manutenibilità del codice.
 
-## 2. Data Flow Architecture
+## 2. Architettura del Flusso Dati
 
-The data flows through the layers in the following sequence. Each step refines the data and adds business value.
+I dati fluiscono attraverso i layer nella seguente sequenza. Ogni passo raffina i dati e aggiunge valore di business.
 
 ```
-[Source Tables] -> [Bronze Layer] -> [Silver Layer] -> [ML Layer] -> [Gold Layer]
-                       (Ingestion)      (Cleaning &     (Training)     (Analytics,
-                                         Conforming)                    KPIs, Forecasts)
+[Tabelle Sorgente] -> [Layer Bronze] -> [Layer Silver] -> [Layer ML] -> [Layer Gold]
+                         (Ingestion)      (Pulizia e      (Training)   (Analytics,
+                                          Conformità)                  KPI, Previsioni)
 ```
 
-## 3. Layer-by-Layer Breakdown
+## 3. Analisi Dettagliata per Layer
 
-### 3.1. Bronze Layer: Raw Data Ingestion
+### 3.1. Layer Bronze: Ingestione dei Dati Grezzi
 
-The Bronze layer is the entry point for raw data from source systems. Its only purpose is to create a copy of the source data with minimal to no transformations.
+Il layer Bronze è il punto di ingresso per i dati grezzi provenienti dai sistemi sorgente. Il suo unico scopo è creare una copia fedele dei dati di origine con trasformazioni minime o nulle, garantendo di avere sempre una base di partenza tracciabile.
 
-*   **`bronze.inventory_raw`**: Ingests raw daily inventory data.
-*   **`bronze.purchase_orders_raw`**: Ingests raw purchase order data.
-*   **`bronze.sales_raw`**: Ingests raw sales data.
+*   **`bronze.inventory_raw`**: Ingestisce i dati grezzi giornalieri sull'inventario.
+*   **`bronze.purchase_orders_raw`**: Ingestisce i dati grezzi degli ordini di acquisto.
+*   **`bronze.sales_raw`**: Ingestisce i dati grezzi delle vendite.
 
-### 3.2. Silver Layer: Cleaned & Conformed Data
+### 3.2. Layer Silver: Dati Puliti e Conformati
 
-The Silver layer takes the raw data, cleans it, conforms it into a dimensional model, and creates reliable "fact" and "dimension" tables. This is the single source of truth for all downstream analytics.
+Il layer Silver prende i dati grezzi, li pulisce, li conforma in un modello dimensionale e crea tabelle di "fatti" e "dimensioni" affidabili. Questo layer rappresenta la "single source of truth" (unica fonte di verità) per tutte le analisi a valle.
 
-#### Silver Dimensions (The "Who, What, Where, When")
-*   **`silver.dim_date`**: A generated calendar table for time-based analysis.
-*   **`silver.dim_region`**: A unique list of all sales regions.
-*   **`silver.dim_sku`**: A unique list of all products (SKUs).
-*   **`silver.dim_supplier`**: A unique list of all suppliers.
+#### Dimensioni Silver (Il "Chi, Cosa, Dove, Quando")
+*   **`silver.dim_date`**: Tabella di calendario generata programmaticamente, essenziale per analisi temporali flessibili (es. aggregazioni per mese, settimana, anno).
+*   **`silver.dim_region`**: Elenco univoco di tutte le regioni di vendita, per garantire coerenza nei filtri e nelle aggregazioni geografiche.
+*   **`silver.dim_sku`**: Elenco anagrafico di tutti i prodotti (SKU), il cuore del catalogo prodotti.
+*   **`silver.dim_supplier`**: Elenco anagrafico di tutti i fornitori.
 
-#### Silver Facts (The "Events" or "Measurements")
-*   **`silver.inventory_daily`**: Cleaned daily inventory levels.
-*   **`silver.purchase_orders_clean`**: Cleaned purchase order data with boolean flags.
-*   **`silver.sales_enriched`**: Sales data joined with inventory data to provide context (e.g., stock levels at time of sale).
-*   **`silver.purchase_order_lead_time`**: Calculates the actual lead time for every received PO line.
-*   **`silver.demand_features_daily`**: **(Key Table for ML)** A rich feature table that prepares data for the forecasting model. It calculates lag features, rolling averages, and joins calendar data.
+#### Fatti Silver (Gli "Eventi" o le "Misure")
+*   **`silver.inventory_daily`**: Livelli di inventario giornalieri puliti e pronti per l'analisi.
+*   **`silver.purchase_orders_clean`**: Dati degli ordini di acquisto puliti, con l'aggiunta di flag booleani (es. `is_received`) per semplificare le query successive.
+*   **`silver.sales_enriched`**: Dati di vendita arricchiti con informazioni sull'inventario, permettendo di contestualizzare le vendite (es. "abbiamo venduto 10 unità, ma avevamo 200 unità a magazzino").
+*   **`silver.purchase_order_lead_time`**: Calcola il tempo di consegna (lead time) effettivo per ogni linea di ordine ricevuta, un dato fondamentale per le analisi sulla supply chain.
+*   **`silver.demand_features_daily`**: **(Tabella Chiave per ML)** Una tabella di "feature" che prepara i dati per il modello di forecasting. Calcola feature complesse come le vendite dei giorni passati (lag) e le medie mobili, che aiutano il modello a capire trend e stagionalità.
 
-### 3.3. ML Layer: Machine Learning Models
+### 3.3. Layer ML: Machine Learning
 
-This layer contains the logic for training and retraining machine learning models.
+Questo layer contiene la logica per l'addestramento e il riaddestramento dei modelli di machine learning.
 
-*   **`ml.train_demand_forecast_model`**: This script trains a powerful and scalable forecasting model.
-    *   **Model Type**: `ARIMA_PLUS_XREG`, which supports external features.
-    *   **Scalability**: It's trained on **all SKUs and regions** simultaneously by using `time_series_id_col`.
-    *   **Features**: It uses the rich features from `silver.demand_features_daily` to drastically improve forecast accuracy beyond simple time series analysis.
+*   **`ml.train_demand_forecast_model`**: Questo script addestra un modello di forecasting potente e scalabile.
+    *   **Tipo di Modello**: `ARIMA_PLUS_XREG`, un modello di serie temporali avanzato che supporta l'uso di feature esterne (regressori esogeni) per migliorare l'accuratezza.
+    *   **Scalabilità**: È addestrato su **tutti gli SKU e regioni** contemporaneamente, istruendo BigQuery a creare migliaia di micro-modelli in parallelo.
+    *   **Features**: Utilizza le feature ingegnerizzate da `silver.demand_features_daily` per migliorare drasticamente l'accuratezza rispetto a una semplice analisi univariata.
 
-### 3.4. Gold Layer: Business Intelligence & Analytics
+### 3.4. Layer Gold: Business Intelligence & Analytics
 
-The Gold layer provides the final, aggregated, business-ready datasets for reporting, dashboards, and high-level analysis.
+Il layer Gold fornisce i dataset finali, aggregati e pronti per il business, utilizzati per report, dashboard e analisi strategiche.
 
-*   **`gold.supplier_performance`**: Monthly KPIs for each supplier (e.g., average lead time).
-*   **`gold.kpi_service_level`**: Daily service level KPIs like fill rate.
-*   **`gold.stock_position`**: Calculates the daily financial value of on-hand stock.
-*   **`gold.sku_demand_classification`**: Classifies all SKUs using ABC/XYZ analysis based on sales volume and volatility.
-*   **`gold.dynamic_safety_stock`**: A prescriptive model that recommends the optimal safety stock level for each SKU.
-*   **`gold.demand_forecast`**: **(Key Output)** The final, multi-horizon sales forecast for all SKUs (30, 90, and 180 days).
-*   **`gold.forecast_evaluation`**: **(Key for Monitoring)** Contains error metrics (MAPE, MAE, etc.) for every single SKU, allowing for detailed monitoring of forecast accuracy.
+*   **`gold.supplier_performance`**: Fornisce KPI mensili per ogni fornitore, come il lead time medio e il tasso di puntualità. Aiuta a rispondere a domande come: "Qual è il nostro fornitore più affidabile?".
+*   **`gold.kpi_service_level`**: Calcola KPI giornalieri sul livello di servizio, come il "fill rate" (tasso di riempimento). Mostra la capacità dell'azienda di soddisfare la domanda dei clienti.
+*   **`gold.stock_position`**: Calcola il valore finanziario dello stock a magazzino ogni giorno, un dato cruciale per la gestione finanziaria.
+*   **`gold.sku_demand_classification`**: Classifica tutti gli SKU usando l'analisi ABC/XYZ, un potente strumento per differenziare le strategie di gestione stock in base al volume di vendita e alla volatilità della domanda.
+*   **`gold.dynamic_safety_stock`**: Un modello prescrittivo che non si limita a descrivere il passato, ma **suggerisce un'azione**: il livello ottimale di stock di sicurezza da mantenere per ogni SKU per raggiungere un livello di servizio del 95%.
+*   **`gold.demand_forecast`**: **(Output Chiave)** La previsione di vendita finale, multi-orizzonte (30, 90, 180 giorni), per tutti gli SKU.
+*   **`gold.forecast_evaluation`**: **(Chiave per il Monitoraggio)** Contiene le metriche di errore (MAPE, MAE, etc.) per ogni singolo SKU, consentendo un monitoraggio dettagliato dell'accuratezza del modello e creando le basi per un processo di "auto-correzione" guidato dai dati.
 
-## 4. Reusable Code (`includes/`)
+## 4. Codice Riutilizzabile (`includes/`)
 
-This directory contains Javascript helper functions to ensure code is DRY (Don't Repeat Yourself).
-*   **`date.js`**: Functions for common date manipulations in SQL.
-*   **`kpi.js`**: Functions for calculating common business KPIs.
+Questa cartella contiene funzioni Javascript che generano frammenti di codice SQL, per evitare duplicazioni e mantenere il codice pulito (principio DRY).
+*   **`date.js`**: Funzioni per manipolazioni comuni di date.
+*   **`kpi.js`**: Funzioni per calcolare KPI di business standard.
 
-## 5. The Scalable Forecasting Framework
+## 5. Il Framework di Forecasting Scalabile
 
-The core of this project's evolution is the new forecasting system. It works as follows:
+Il cuore dell'evoluzione di questo progetto è il nuovo sistema di forecasting. Funziona così:
 
-1.  **Feature Engineering (`demand_features_daily`)**: We first create a rich dataset with features that help predict sales, such as day of the week, recent sales trends (moving averages), and seasonality (lag features).
-2.  **Scalable Training (`train_demand_forecast_model`)**: A single `ARIMA_PLUS_XREG` model is trained on this rich dataset. By specifying `sku_id` and `region` as time series identifiers, BigQuery ML efficiently trains hundreds or thousands of micro-models in parallel.
-3.  **Multi-Horizon Forecasting (`demand_forecast`)**: The trained model is used to generate forecasts for 30, 90, and 180 days into the future. This is done by providing the model with a table of future dates and their corresponding calendar features.
-4.  **Performance Monitoring (`forecast_evaluation`)**: The system automatically evaluates the model's accuracy for every single SKU, providing a tight feedback loop to understand which forecasts are reliable and which are not. This is the foundation for a "self-correcting" process, where business decisions can be made based on model performance.
+1.  **Feature Engineering (`demand_features_daily`)**: Per prima cosa, creiamo un dataset ricco di feature che aiutano a prevedere le vendite, come il giorno della settimana, i trend recenti (medie mobili) e la stagionalità (lag features).
+2.  **Training Scalabile (`train_demand_forecast_model`)**: Un singolo modello `ARIMA_PLUS_XREG` viene addestrato su questo dataset. Specificando `sku_id` e `region` come identificatori delle serie temporali, BigQuery ML addestra in modo efficiente centinaia o migliaia di micro-modelli in parallelo.
+3.  **Previsione Multi-Orizzonte (`demand_forecast`)**: Il modello addestrato viene usato per generare previsioni a 30, 90 e 180 giorni nel futuro. Questo viene fatto fornendo al modello una tabella con le date future e le loro corrispondenti feature di calendario.
+4.  **Monitoraggio delle Performance (`forecast_evaluation`)**: Il sistema valuta automaticamente l'accuratezza del modello per ogni singolo SKU. Questo crea un ciclo di feedback che permette di capire quali previsioni sono affidabili e quali no, fondando le basi per un processo di "auto-correzione" in cui le decisioni di business sono guidate dalle performance del modello stesso.
