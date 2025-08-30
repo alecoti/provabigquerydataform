@@ -10,21 +10,32 @@
 config { type: "table", schema: "silver", tags: ["silver","dimension"] }
 
 WITH region_coords AS (
-  -- Manual mapping of region names to the coordinates of their capital cities.
-  SELECT 'Lombardia' AS region, 45.4642 AS latitude, 9.1900 AS longitude
-  UNION ALL
-  SELECT 'Lazio' AS region, 41.9028 AS latitude, 12.4964 AS longitude
-  UNION ALL
-  SELECT 'Campania' AS region, 40.8518 AS latitude, 14.2681 AS longitude
-  UNION ALL
-  SELECT 'Piemonte' AS region, 45.0703 AS latitude, 7.6869 AS longitude
-  UNION ALL
-  SELECT 'Sicilia' AS region, 38.1157 AS latitude, 13.3615 AS longitude
-  UNION ALL
-  SELECT 'Emilia-Romagna' AS region, 44.4949 AS latitude, 11.3426 AS longitude
+  -- Manual and complete mapping of Italian regions to the coordinates of their capital cities.
+  SELECT 'Abruzzo' AS region, 42.3508 AS latitude, 13.3999 AS longitude UNION ALL
+  SELECT 'Basilicata' AS region, 40.6394 AS latitude, 15.8050 AS longitude UNION ALL
+  SELECT 'Calabria' AS region, 38.9093 AS latitude, 16.5878 AS longitude UNION ALL
+  SELECT 'Campania' AS region, 40.8518 AS latitude, 14.2681 AS longitude UNION ALL
+  SELECT 'Emilia-Romagna' AS region, 44.4949 AS latitude, 11.3426 AS longitude UNION ALL
+  SELECT 'Friuli-Venezia Giulia' AS region, 45.6495 AS latitude, 13.7768 AS longitude UNION ALL
+  SELECT 'Lazio' AS region, 41.9028 AS latitude, 12.4964 AS longitude UNION ALL
+  SELECT 'Liguria' AS region, 44.4056 AS latitude, 8.9463 AS longitude UNION ALL
+  SELECT 'Lombardia' AS region, 45.4642 AS latitude, 9.1900 AS longitude UNION ALL
+  SELECT 'Marche' AS region, 43.6158 AS latitude, 13.5189 AS longitude UNION ALL
+  SELECT 'Molise' AS region, 41.5620 AS latitude, 14.6620 AS longitude UNION ALL
+  SELECT 'Piemonte' AS region, 45.0703 AS latitude, 7.6869 AS longitude UNION ALL
+  SELECT 'Puglia' AS region, 41.1171 AS latitude, 16.8719 AS longitude UNION ALL
+  SELECT 'Sardegna' AS region, 39.2238 AS latitude, 9.1217 AS longitude UNION ALL
+  SELECT 'Sicilia' AS region, 38.1157 AS latitude, 13.3615 AS longitude UNION ALL
+  SELECT 'Toscana' AS region, 43.7696 AS latitude, 11.2558 AS longitude UNION ALL
+  SELECT 'Trentino-Alto Adige' AS region, 46.0667 AS latitude, 11.1167 AS longitude UNION ALL
+  SELECT 'Umbria' AS region, 43.1122 AS latitude, 12.3889 AS longitude UNION ALL
+  SELECT 'Valle d\'Aosta' AS region, 45.7372 AS latitude, 7.3204 AS longitude UNION ALL
+  SELECT 'Veneto' AS region, 45.4408 AS latitude, 12.3155 AS longitude
 ),
 
 distinct_regions AS (
+  -- This ensures that even if the source data changes, we only ever have the regions
+  -- that are actually present in our fact tables.
   SELECT DISTINCT region
   FROM ${ref("inventory_daily")}
   WHERE region IS NOT NULL
@@ -35,4 +46,6 @@ SELECT
   rc.latitude,
   rc.longitude
 FROM distinct_regions dr
+-- A LEFT JOIN ensures that if a new, unmapped region appears in the data, the pipeline
+-- won't fail. It will simply have NULL coordinates, which can be flagged for review.
 LEFT JOIN region_coords rc ON dr.region = rc.region
